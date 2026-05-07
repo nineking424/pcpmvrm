@@ -9,10 +9,10 @@ import (
 
 func TestRejectUnsupported(t *testing.T) {
 	tests := []struct {
-		name   string
-		tool   string
-		args   []string
-		hit    string // 검출되어야 하는 옵션 (또는 "" = 통과)
+		name string
+		tool string
+		args []string
+		hit  string // 검출되어야 하는 옵션 (또는 "" = 통과)
 	}{
 		{name: "pcp ok plain", tool: "pcp", args: []string{"-r", "src", "dst"}, hit: ""},
 		{name: "pcp reject -i", tool: "pcp", args: []string{"-i", "src", "dst"}, hit: "-i"},
