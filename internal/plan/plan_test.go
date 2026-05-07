@@ -28,12 +28,22 @@ func TestPlanValidate(t *testing.T) {
 			wantErr: "dst is required for copy",
 		},
 		{
+			name:    "missing dst for move",
+			p:       plan.Plan{Op: plan.OpMove, Src: "/a", Workers: 1},
+			wantErr: "dst is required for move",
+		},
+		{
+			name:    "remove ok with empty dst",
+			p:       plan.Plan{Op: plan.OpRemove, Src: "/a", Workers: 1},
+			wantErr: "",
+		},
+		{
 			name:    "workers must be positive",
 			p:       plan.Plan{Op: plan.OpCopy, Src: "/a", Dst: "/b", Workers: 0},
 			wantErr: "workers must be >= 1",
 		},
 		{
-			name:    "strict-order and strict-extension are exclusive when conflicting",
+			name:    "strict-order and strict-extensions both allowed",
 			p:       plan.Plan{Op: plan.OpCopy, Src: "/a", Dst: "/b", Workers: 1, StrictOrder: true, StrictExtensions: []string{".json"}},
 			wantErr: "", // 둘 다 허용 (스펙 §5.2)
 		},
