@@ -125,7 +125,10 @@ func TestPool_CallsJobFinishOnPanic(t *testing.T) {
 	})
 	pool.Run(context.Background(), jobs, results)
 	close(results)
-	for range results {
+
+	r := <-results
+	if r.Err == nil || !errors.Is(r.Err, worker.ErrPanic) {
+		t.Errorf("expected ErrPanic, got %v", r.Err)
 	}
 
 	if !finished {
