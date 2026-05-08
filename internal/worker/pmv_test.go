@@ -2,6 +2,7 @@ package worker_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -84,5 +85,59 @@ func TestPMVHandler_NoClobberSkips(t *testing.T) {
 	got, _ := os.ReadFile(dst)
 	if string(got) != "old" {
 		t.Errorf("dst overwritten: %q", got)
+	}
+}
+
+func TestPMVHandler_DirRemove(t *testing.T) {
+	dir := t.TempDir()
+	emptyDir := filepath.Join(dir, "empty")
+	if err := os.MkdirAll(emptyDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	h := worker.PMV(plan.Plan{Op: plan.OpMove})
+	r := h(context.Background(), plan.Job{Kind: plan.JobDirRemove, Src: emptyDir})
+	if r.Err != nil {
+		t.Fatalf("err: %v", r.Err)
+	}
+	if _, err := os.Stat(emptyDir); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("dir should be removed: err=%v", err)
+	}
+}
+
+func TestPMVHandler_DirRemoveNonEmpty(t *testing.T) {
+	dir := t.TempDir()
+	d := filepath.Join(dir, "x")
+	if err := os.MkdirAll(d, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, "f"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	h := worker.PMV(plan.Plan{Op: plan.OpMove})
+	r := h(context.Background(), plan.Job{Kind: plan.JobDirRemove, Src: d})
+	if r.Err == nil {
+		t.Fatal("rmdir on non-empty dir should fail")
+	}
+}
+
+func TestPMVHandler_DirRemoveDryRun(t *testing.T) {
+	dir := t.TempDir()
+	emptyDir := filepath.Join(dir, "empty")
+	if err := os.MkdirAll(emptyDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	h := worker.PMV(plan.Plan{Op: plan.OpMove, DryRun: true})
+	r := h(context.Background(), plan.Job{Kind: plan.JobDirRemove, Src: emptyDir})
+	if r.Err != nil {
+		t.Fatalf("err: %v", r.Err)
+	}
+	if !r.Skipped {
+		t.Error("dry-run should report Skipped")
+	}
+	if _, err := os.Stat(emptyDir); err != nil {
+		t.Errorf("dry-run must not remove dir: %v", err)
 	}
 }

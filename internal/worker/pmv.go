@@ -19,6 +19,8 @@ func PMV(p plan.Plan) Handler {
 			return PCP(p)(ctx, j)
 		case plan.JobUnlink:
 			return handleUnlink(p, j)
+		case plan.JobDirRemove:
+			return handleDirRemove(p, j)
 		}
 		return plan.Result{Job: j, Err: fmt.Errorf("worker/pmv: unsupported job kind %s", j.Kind)}
 	}
@@ -48,6 +50,16 @@ func handleUnlink(p plan.Plan, j plan.Job) plan.Result {
 		return plan.Result{Job: j, Skipped: true}
 	}
 	if err := fsx.RemoveFile(j.Src); err != nil {
+		return plan.Result{Job: j, Err: err}
+	}
+	return plan.Result{Job: j}
+}
+
+func handleDirRemove(p plan.Plan, j plan.Job) plan.Result {
+	if p.DryRun {
+		return plan.Result{Job: j, Skipped: true}
+	}
+	if err := fsx.RemoveDir(j.Src); err != nil {
 		return plan.Result{Job: j, Err: err}
 	}
 	return plan.Result{Job: j}

@@ -7,3 +7,9 @@ import "os"
 func RemoveFile(path string) error {
 	return os.Remove(path)
 }
+
+// RemoveDir removes an empty directory (rmdir(2) semantics).
+// On a non-empty directory, the underlying syscall returns ENOTEMPTY.
+func RemoveDir(path string) error {
+	return os.Remove(path)
+}
