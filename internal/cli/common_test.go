@@ -57,3 +57,23 @@ func TestParseCommon(t *testing.T) {
 		})
 	}
 }
+
+func TestParseCommon_Fallback(t *testing.T) {
+	c, _, err := cli.ParseCommon([]string{"--fallback"})
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !c.Fallback {
+		t.Error("expected Fallback=true")
+	}
+}
+
+func TestParseCommon_FallbackDefaultsFalse(t *testing.T) {
+	c, _, err := cli.ParseCommon([]string{"--parallel=4"})
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if c.Fallback {
+		t.Error("expected Fallback=false by default")
+	}
+}

@@ -15,6 +15,7 @@ type Common struct {
 	ErrorLogPath     string
 	DryRun           bool
 	NoProgress       bool
+	Fallback         bool
 }
 
 // RegisterCommon binds the common flags onto the given FlagSet.
@@ -26,6 +27,7 @@ func RegisterCommon(fs *pflag.FlagSet, c *Common) {
 	fs.StringVar(&c.ErrorLogPath, "error-log", "", "path for the error log (default: ./<tool>-failed-<timestamp>.log)")
 	fs.BoolVar(&c.DryRun, "dry-run", false, "print planned actions without executing")
 	fs.BoolVar(&c.NoProgress, "no-progress", false, "disable the progress line even on a TTY")
+	fs.BoolVar(&c.Fallback, "fallback", false, "delegate to /bin/cp /bin/mv /bin/rm via fork+exec (slower; supports options T4/T5 don't natively)")
 }
 
 // ParseCommon is a convenience for tests: it parses *only* the common flags
