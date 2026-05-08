@@ -7,7 +7,7 @@
 - ✅ Plan 1: Foundation + `pcp`
 - ✅ Plan 2: `pmv`
 - ✅ Plan 3: `prm`
-- ⏳ Plan 4: `--fallback` 모드 (자식 프로세스 위임)
+- ✅ Plan 4: `--fallback` 모드 (자식 프로세스 위임)
 
 ## 빌드
 
@@ -63,6 +63,30 @@ prm -d /tmp/maybe-empty/
 prm -r --parallel=8 --dry-run /var/log/old/
 ```
 
+### `--fallback` (자식 프로세스 위임 모드)
+
+native 모드가 지원하지 않는 옵션(`--reflink`, `--sparse`, `-Z` 등)을 써야 하거나
+플랫폼 특수 동작이 필요할 때 `--fallback`을 사용합니다. Job마다 `/bin/cp`,
+`/bin/mv`, `/bin/rm`, `/bin/rmdir`을 fork+exec로 호출하므로 native 대비 처리량이
+크게 떨어집니다. 일반 워크로드에는 native 모드를 권장합니다.
+
+```bash
+# native가 거부하는 옵션을 그대로 cp(1)로 전달
+pcp -r --parallel=8 --fallback --reflink=auto src/ dst/
+
+# SELinux 컨텍스트 유지하며 이동
+pmv --fallback -Z /etc/foo /etc/bar
+
+# unknown short flag(-x 등)가 다음 인자를 값으로 소비하는 pflag 동작 회피용:
+# `--` 구분자로 positional 인자를 명시
+pcp --fallback -- -x /path/with/leading-dash dst/
+```
+
+`--fallback`이 켜지면 `pcp`/`pmv`/`prm`의 미지원 옵션 검사는 전부 우회됩니다.
+unknown long flag(`--reflink=auto`처럼 `=값` 형태)는 그대로 전달되지만,
+unknown short flag(`-x`)는 pflag의 한계로 다음 positional 인자를 값으로 소비할
+수 있습니다. 이 경우 `--`로 옵션 끝을 명시하세요.
+
 ## 설계 문서
 
 - [`docs/superpowers/specs/2026-05-08-pcpmvrm-design.md`](docs/superpowers/specs/2026-05-08-pcpmvrm-design.md)
@@ -70,6 +94,7 @@ prm -r --parallel=8 --dry-run /var/log/old/
 - [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan1-foundation-and-pcp.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan1-foundation-and-pcp.md)
 - [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan2-pmv.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan2-pmv.md)
 - [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan3-prm.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan3-prm.md)
+- [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan4-fallback.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan4-fallback.md)
 
 ## 라이선스
 
