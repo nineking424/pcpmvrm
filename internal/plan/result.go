@@ -10,5 +10,6 @@ type Result struct {
 	Err     error
 	Bytes   int64
 	Elapsed time.Duration
-	Skipped bool // -n / -u 등으로 의도적으로 건너뜀
+	Skipped bool   // -n / -u 등으로 의도적으로 건너뜀
+	Stdout  string // fallback 모드에서 자식의 stdout 캡처 (verbose에 표시)
 }
