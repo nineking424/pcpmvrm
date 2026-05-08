@@ -97,7 +97,10 @@ func run(args []string) int {
 	}()
 
 	w := walk.NewRemove(p)
-	_ = w.Walk(sig.Ctx(), jobs)
+	if err := w.Walk(sig.Ctx(), jobs); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 2
+	}
 	close(jobs)
 	poolWg.Wait()
 
