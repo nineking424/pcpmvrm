@@ -3,6 +3,7 @@ package worker_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -83,5 +84,54 @@ func TestPool_RecoversPanicsAsErrors(t *testing.T) {
 	r := <-results
 	if r.Err == nil || !errors.Is(r.Err, worker.ErrPanic) {
 		t.Fatalf("expected ErrPanic, got %v", r.Err)
+	}
+}
+
+func TestPool_CallsJobFinish(t *testing.T) {
+	var mu sync.Mutex
+	finishedCount := 0
+	mark := func() { mu.Lock(); finishedCount++; mu.Unlock() }
+
+	jobs := make(chan plan.Job, 4)
+	results := make(chan plan.Result, 4)
+	jobs <- plan.Job{Kind: plan.JobUnlink, Src: "/a", Done: mark}
+	jobs <- plan.Job{Kind: plan.JobUnlink, Src: "/b", Done: mark}
+	close(jobs)
+
+	pool := worker.NewPool(2, func(ctx context.Context, j plan.Job) plan.Result {
+		return plan.Result{Job: j}
+	})
+	pool.Run(context.Background(), jobs, results)
+	close(results)
+	for range results {
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if finishedCount != 2 {
+		t.Errorf("Done called %d times, want 2", finishedCount)
+	}
+}
+
+func TestPool_CallsJobFinishOnPanic(t *testing.T) {
+	finished := false
+	jobs := make(chan plan.Job, 1)
+	results := make(chan plan.Result, 1)
+	jobs <- plan.Job{Kind: plan.JobUnlink, Src: "/x", Done: func() { finished = true }}
+	close(jobs)
+
+	pool := worker.NewPool(1, func(ctx context.Context, j plan.Job) plan.Result {
+		panic("boom")
+	})
+	pool.Run(context.Background(), jobs, results)
+	close(results)
+
+	r := <-results
+	if r.Err == nil || !errors.Is(r.Err, worker.ErrPanic) {
+		t.Errorf("expected ErrPanic, got %v", r.Err)
+	}
+
+	if !finished {
+		t.Error("Done must be called even when handler panics")
 	}
 }

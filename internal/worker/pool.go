@@ -64,6 +64,7 @@ func (p *Pool) workerLoop(ctx context.Context, jobs <-chan plan.Job, results cha
 }
 
 func (p *Pool) safeHandle(ctx context.Context, j plan.Job) (r plan.Result) {
+	defer j.Finish() // runs LAST (LIFO) — even on panic
 	defer func() {
 		if rec := recover(); rec != nil {
 			r = plan.Result{Job: j, Err: fmt.Errorf("%w: %v", ErrPanic, rec)}

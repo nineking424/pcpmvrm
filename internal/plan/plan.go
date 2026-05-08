@@ -38,6 +38,7 @@ type Plan struct {
 	UpdateOnly     bool // -u
 	Preserve       Preserve
 	RemoveEmptyDir bool // prm -d
+	ForceMissing   bool // prm -f: 존재하지 않는 파일에 대해 에러 안 냄
 
 	// SameDevice는 pmv가 사전 stat 결과로 same-device임을 확인했을 때 true.
 	// true이면 Workers는 1로 다운그레이드된 상태이며 walker가 단일 JobRename을 emit한다.

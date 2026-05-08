@@ -26,7 +26,14 @@ var unsupportedLong = map[string]map[string]struct{}{
 		"--interactive": {}, "--backup": {}, "--no-target-directory": {},
 		"--strip-trailing-slashes": {}, "--context": {},
 	},
-	"prm": {"--interactive": {}, "--one-file-system": {}},
+	"prm": {"--interactive": {}, "--one-file-system": {}, "--no-preserve-root": {}},
+}
+
+// unsupportedExact lists args rejected only when matching the full form
+// (including =value). Used for cases where the bare flag is allowed but
+// a specific value form is not, e.g. --preserve-root vs --preserve-root=all.
+var unsupportedExact = map[string]map[string]struct{}{
+	"prm": {"--preserve-root=all": {}},
 }
 
 // FirstUnsupported scans args and returns the first unsupported option found,
@@ -34,12 +41,19 @@ var unsupportedLong = map[string]map[string]struct{}{
 //
 // It correctly explodes combined short flags ("-ri" → "-r" + "-i").
 // Long options with values ("--reflink=auto") are matched on the option name only.
+// Exact matches (e.g., "--preserve-root=all") take precedence over name-only matches.
 func FirstUnsupported(tool string, args []string) string {
 	short := unsupportedShort[tool]
 	long := unsupportedLong[tool]
+	exact := unsupportedExact[tool]
 	for _, a := range args {
 		switch {
 		case strings.HasPrefix(a, "--"):
+			// Check exact match first (e.g., --preserve-root=all)
+			if _, bad := exact[a]; bad {
+				return a
+			}
+			// Then check option name only (e.g., --reflink in --reflink=auto)
 			name := a
 			if eq := strings.IndexByte(a, '='); eq >= 0 {
 				name = a[:eq]
