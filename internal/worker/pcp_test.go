@@ -97,3 +97,35 @@ func TestPCPHandler_DryRunNoIO(t *testing.T) {
 	}
 	_ = fsx.ErrSkipExisting // keep import
 }
+
+func TestPCPHandler_DirCopy_SerialChildren(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "src")
+	dstDir := filepath.Join(dir, "dst")
+	_ = os.MkdirAll(filepath.Join(srcDir, "sub"), 0755)
+	_ = os.MkdirAll(dstDir, 0755)
+	_ = os.WriteFile(filepath.Join(srcDir, "a"), []byte("A"), 0644)
+	_ = os.WriteFile(filepath.Join(srcDir, "b"), []byte("B"), 0644)
+	_ = os.WriteFile(filepath.Join(srcDir, "sub", "c"), []byte("C"), 0644)
+
+	h := worker.PCP(plan.Plan{Op: plan.OpCopy, Recursive: true})
+	r := h(context.Background(), plan.Job{
+		Kind:    plan.JobDirCopy,
+		Src:     srcDir,
+		Dst:     dstDir,
+		RelPath: "",
+	})
+	if r.Err != nil {
+		t.Fatalf("dir copy err: %v", r.Err)
+	}
+	for _, p := range []string{"a", "b", "sub/c"} {
+		got, err := os.ReadFile(filepath.Join(dstDir, p))
+		if err != nil {
+			t.Errorf("missing %s: %v", p, err)
+			continue
+		}
+		if string(got) == "" {
+			t.Errorf("empty content for %s", p)
+		}
+	}
+}
