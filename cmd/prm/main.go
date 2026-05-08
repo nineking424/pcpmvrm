@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -86,6 +87,9 @@ func run(args []string) int {
 			}
 			prog.IncFiles()
 			verb.Logf("ok   %s", r.Job.RelPath)
+			if r.Stdout != "" {
+				verb.Logf("%s", strings.TrimRight(r.Stdout, "\n"))
+			}
 		}
 	}()
 

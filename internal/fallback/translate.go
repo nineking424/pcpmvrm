@@ -84,6 +84,9 @@ func translateRm(p plan.Plan, j plan.Job) (string, []string) {
 	return "", nil
 }
 
+// preserveArg는 GNU coreutils cp의 `--preserve=...` 형식을 생성한다.
+// BSD cp(macOS)는 이 형식을 거부하므로 fallback + Preserve 조합은 Linux 전용이다.
+// macOS에서 메타데이터 보존이 필요하면 native 모드(--fallback 미사용)를 사용한다.
 func preserveArg(pres plan.Preserve) string {
 	var parts []string
 	if pres.Mode {
