@@ -2,6 +2,7 @@ package fallback_test
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/nineking424/pcpmvrm/internal/fallback"
@@ -19,7 +20,11 @@ func TestTranslate_PCPCopy(t *testing.T) {
 	if bin != "/bin/cp" {
 		t.Errorf("bin=%s, want /bin/cp", bin)
 	}
-	want := []string{"-v", "--preserve=mode,ownership,timestamps", "--reflink=auto", "src/file", "dst/file"}
+	preserve := "--preserve=mode,ownership,timestamps"
+	if runtime.GOOS != "linux" {
+		preserve = "-p"
+	}
+	want := []string{"-v", preserve, "--reflink=auto", "src/file", "dst/file"}
 	if !reflect.DeepEqual(args, want) {
 		t.Errorf("args=%v\nwant %v", args, want)
 	}

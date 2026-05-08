@@ -1,6 +1,7 @@
 package fallback
 
 import (
+	"runtime"
 	"strings"
 
 	"github.com/nineking424/pcpmvrm/internal/plan"
@@ -84,10 +85,16 @@ func translateRm(p plan.Plan, j plan.Job) (string, []string) {
 	return "", nil
 }
 
-// preserveArg는 GNU coreutils cp의 `--preserve=...` 형식을 생성한다.
-// BSD cp(macOS)는 이 형식을 거부하므로 fallback + Preserve 조합은 Linux 전용이다.
-// macOS에서 메타데이터 보존이 필요하면 native 모드(--fallback 미사용)를 사용한다.
+// preserveArg는 OS별로 cp(1)의 메타데이터 보존 옵션을 생성한다.
+// Linux(GNU coreutils): `--preserve=mode,ownership,timestamps` 형태로 세분 지정.
+// 그 외(BSD cp on macOS 등): `-p` 단일 옵션으로 모드/소유자/시간 모두 보존.
 func preserveArg(pres plan.Preserve) string {
+	if !pres.Mode && !pres.Ownership && !pres.Timestamps {
+		return ""
+	}
+	if runtime.GOOS != "linux" {
+		return "-p"
+	}
 	var parts []string
 	if pres.Mode {
 		parts = append(parts, "mode")
@@ -97,9 +104,6 @@ func preserveArg(pres plan.Preserve) string {
 	}
 	if pres.Timestamps {
 		parts = append(parts, "timestamps")
-	}
-	if len(parts) == 0 {
-		return ""
 	}
 	return "--preserve=" + strings.Join(parts, ",")
 }
