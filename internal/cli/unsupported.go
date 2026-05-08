@@ -11,7 +11,7 @@ import (
 // Keyed by tool name. Combined flags like -ri are exploded letter-by-letter.
 var unsupportedShort = map[string]map[byte]struct{}{
 	"pcp": {'i': {}, 'L': {}, 'P': {}, 'H': {}, 'd': {}, 'l': {}, 's': {}, 'x': {}},
-	"pmv": {'i': {}},
+	"pmv": {'i': {}, 'b': {}, 'T': {}, 'Z': {}},
 	"prm": {'i': {}, 'I': {}},
 }
 
@@ -22,7 +22,10 @@ var unsupportedLong = map[string]map[string]struct{}{
 		"--remove-destination": {}, "--copy-contents": {}, "--symbolic-link": {},
 		"--link": {}, "--one-file-system": {}, "--interactive": {},
 	},
-	"pmv": {"--interactive": {}},
+	"pmv": {
+		"--interactive": {}, "--backup": {}, "--no-target-directory": {},
+		"--strip-trailing-slashes": {}, "--context": {},
+	},
 	"prm": {"--interactive": {}, "--one-file-system": {}},
 }
 
