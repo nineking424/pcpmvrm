@@ -31,6 +31,15 @@ func TestRejectUnsupported(t *testing.T) {
 		{name: "pmv reject --context", tool: "pmv", args: []string{"--context=user_u", "src", "dst"}, hit: "--context"},
 		{name: "pmv reject -i", tool: "pmv", args: []string{"-i", "src", "dst"}, hit: "-i"},
 		{name: "pmv ok plain", tool: "pmv", args: []string{"-f", "src", "dst"}, hit: ""},
+
+		{name: "prm reject -i", tool: "prm", args: []string{"-i", "/tmp/x"}, hit: "-i"},
+		{name: "prm reject -I", tool: "prm", args: []string{"-I", "/tmp/x"}, hit: "-I"},
+		{name: "prm reject --interactive", tool: "prm", args: []string{"--interactive=once", "/tmp/x"}, hit: "--interactive"},
+		{name: "prm reject --one-file-system", tool: "prm", args: []string{"--one-file-system", "-r", "/tmp/x"}, hit: "--one-file-system"},
+		{name: "prm reject --no-preserve-root", tool: "prm", args: []string{"--no-preserve-root", "-rf", "/tmp/x"}, hit: "--no-preserve-root"},
+		{name: "prm reject --preserve-root=all", tool: "prm", args: []string{"--preserve-root=all", "-rf", "/tmp/x"}, hit: "--preserve-root=all"},
+		{name: "prm ok bare --preserve-root", tool: "prm", args: []string{"--preserve-root", "-rf", "/tmp/x"}, hit: ""},
+		{name: "prm ok plain", tool: "prm", args: []string{"-rf", "/tmp/x"}, hit: ""},
 	}
 
 	for _, tt := range tests {
