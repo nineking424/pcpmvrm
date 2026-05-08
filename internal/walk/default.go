@@ -18,11 +18,19 @@ import (
 //   - directories are mkdir'd eagerly (synchronously) by the walker
 //   - files are pushed as JobCopy onto the queue
 type Default struct {
-	p plan.Plan
+	p       plan.Plan
+	onError func(rel string, err error) // optional; called for skipped walk errors
 }
 
 // NewDefault returns a Default walker bound to p.
 func NewDefault(p plan.Plan) *Default { return &Default{p: p} }
+
+// OnError sets a callback that is invoked for each skipped walk error.
+// This allows the caller to record walk-level errors (e.g. unreadable dirs).
+func (w *Default) OnError(fn func(rel string, err error)) *Default {
+	w.onError = fn
+	return w
+}
 
 // Walk pushes JobCopy values onto jobs until the tree is exhausted or ctx done.
 func (w *Default) Walk(ctx context.Context, jobs chan<- plan.Job) error {
@@ -50,7 +58,15 @@ func (w *Default) walkDir(ctx context.Context, jobs chan<- plan.Job) error {
 
 	return filepath.WalkDir(w.p.Src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			// best-effort: skip this entry and continue with siblings.
+			rel, _ := filepath.Rel(w.p.Src, path)
+			if w.onError != nil {
+				w.onError(rel, err)
+			}
+			if d != nil && d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if path == w.p.Src {
 			return nil

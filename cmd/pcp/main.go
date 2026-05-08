@@ -96,7 +96,11 @@ func run(args []string) int {
 	case p.StrictOrder:
 		_ = walk.NewStrictOrder(p).Walk(sig.Ctx(), jobs)
 	default:
-		_ = walk.NewDefault(p).Walk(sig.Ctx(), jobs)
+		_ = walk.NewDefault(p).OnError(func(rel string, e error) {
+			errLog.Record("walk", rel, e)
+			prog.IncErrors()
+			verb.Logf("ERR  %s: %s", rel, e)
+		}).Walk(sig.Ctx(), jobs)
 	}
 	close(jobs)
 
