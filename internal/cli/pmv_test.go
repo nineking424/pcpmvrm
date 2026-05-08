@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -87,5 +88,36 @@ func TestParsePMV_RequiresTwoPositionals(t *testing.T) {
 	_, err := cli.ParsePMV([]string{"src"})
 	if err == nil {
 		t.Fatal("expected error for single positional")
+	}
+}
+
+func TestParsePMV_FallbackPreservesUnknownFlags(t *testing.T) {
+	args := []string{"--fallback", "--backup=numbered", "-f", "src", "dst"}
+	p, err := cli.ParsePMV(args)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !p.Fallback {
+		t.Fatal("Fallback should be true")
+	}
+	want := map[string]bool{"--backup=numbered": true}
+	got := map[string]bool{}
+	for _, f := range p.RawFlags {
+		got[f] = true
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("RawFlags=%v want %v", p.RawFlags, want)
+	}
+	for _, f := range p.RawFlags {
+		if f == "-f" || f == "--fallback" {
+			t.Errorf("recognized/our flag leaked into RawFlags: %s", f)
+		}
+	}
+}
+
+func TestParsePMV_NoFallback_UnknownFlagStillRejected(t *testing.T) {
+	args := []string{"--backup=numbered", "src", "dst"}
+	if _, err := cli.ParsePMV(args); err == nil {
+		t.Error("unknown flag without --fallback must error")
 	}
 }

@@ -44,6 +44,77 @@ func ParseCommon(args []string) (Common, []string, error) {
 	return c, fs.Args(), nil
 }
 
+// collectRawFlags returns options from args that the FlagSet did NOT register.
+// Used in --fallback mode to forward unknown options to the system binary verbatim.
+//
+// Forms handled:
+//
+//	"--key=value", "-k=value"  → consumed as a single token
+//	"--key", "value" / "-k", "value" → consumed as a pair when next token doesn't start with "-"
+//	"-rf"  → combined short form: each letter checked individually; emit the whole token if ANY letter is unrecognized
+//
+// Special-cased OUT (always dropped from raw, even if unknown):
+//
+//	"--fallback" / "--fallback=..." — our own flag, never forwarded.
+func collectRawFlags(args []string, fs *pflag.FlagSet) []string {
+	var raw []string
+	seenSep := false
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if seenSep {
+			// After "--", everything is positional — not a flag.
+			continue
+		}
+		if a == "--" {
+			seenSep = true
+			continue
+		}
+		if !strings.HasPrefix(a, "-") || a == "-" {
+			continue
+		}
+		// Drop our own --fallback flag (in any form).
+		if a == "--fallback" || strings.HasPrefix(a, "--fallback=") {
+			continue
+		}
+		// Resolve the option name (may have "=value" suffix).
+		key := a
+		hasEq := false
+		if eq := strings.Index(a, "="); eq >= 0 {
+			key = a[:eq]
+			hasEq = true
+		}
+		var known bool
+		if strings.HasPrefix(key, "--") {
+			known = fs.Lookup(strings.TrimPrefix(key, "--")) != nil
+		} else {
+			// Short form: "-r", "-rf" — combined letters all need to be known.
+			letters := key[1:]
+			allKnown := len(letters) > 0
+			for j := 0; j < len(letters); j++ {
+				if fs.ShorthandLookup(string(letters[j])) == nil {
+					allKnown = false
+					break
+				}
+			}
+			known = allKnown
+		}
+		if known {
+			// If recognized but takes a separate value (e.g., "--parallel 4"), pflag will
+			// pair them itself. We don't need to skip the next token — fs.Args() already
+			// excludes both. Move on.
+			continue
+		}
+		// Unknown — emit the token. If it's "--key" (no =) and the next token looks like
+		// a value (not starting with "-"), include it as well.
+		raw = append(raw, a)
+		if !hasEq && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+			raw = append(raw, args[i+1])
+			i++
+		}
+	}
+	return raw
+}
+
 func normalizeExts(in []string) []string {
 	if len(in) == 0 {
 		return nil

@@ -15,6 +15,8 @@ func ParsePMV(args []string) (plan.Plan, error) {
 		return plan.Plan{}, errors.New(UnsupportedMessage("pmv", hit))
 	}
 
+	fallback := hasFlag(args, "--fallback")
+
 	var (
 		c          Common
 		overwrite  bool
@@ -23,6 +25,9 @@ func ParsePMV(args []string) (plan.Plan, error) {
 		updateOnly bool
 	)
 	fs := pflag.NewFlagSet("pmv", pflag.ContinueOnError)
+	if fallback {
+		fs.ParseErrorsWhitelist.UnknownFlags = true
+	}
 	RegisterCommon(fs, &c)
 	fs.BoolVarP(&overwrite, "force", "f", false, "overwrite existing files (vanilla mv -f)")
 	fs.BoolVarP(&verbose, "verbose", "v", false, "print each move operation")
@@ -58,6 +63,10 @@ func ParsePMV(args []string) (plan.Plan, error) {
 		Overwrite:        overwrite,
 		NoClobber:        noClobber,
 		UpdateOnly:       updateOnly,
+		Fallback:         c.Fallback,
+	}
+	if c.Fallback {
+		p.RawFlags = collectRawFlags(args, fs)
 	}
 	if err := p.Validate(); err != nil {
 		return plan.Plan{}, fmt.Errorf("pmv: %w", err)

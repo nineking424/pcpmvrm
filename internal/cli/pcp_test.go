@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -54,5 +55,38 @@ func TestParsePCP_RequiresTwoPositionals(t *testing.T) {
 	_, err := cli.ParsePCP([]string{"src"})
 	if err == nil {
 		t.Fatal("expected error for single positional")
+	}
+}
+
+func TestParsePCP_FallbackPreservesUnknownFlags(t *testing.T) {
+	// "-Z" is unknown to pflag; without "--" pflag would consume "src" as its value.
+	// Use "--" to terminate flag scanning so positionals are preserved correctly.
+	args := []string{"--fallback", "--reflink=auto", "-r", "-Z", "--", "src", "dst"}
+	p, err := cli.ParsePCP(args)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !p.Fallback {
+		t.Fatal("Fallback should be true")
+	}
+	want := map[string]bool{"--reflink=auto": true, "-Z": true}
+	got := map[string]bool{}
+	for _, f := range p.RawFlags {
+		got[f] = true
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("RawFlags=%v want %v", p.RawFlags, want)
+	}
+	for _, f := range p.RawFlags {
+		if f == "-r" || f == "--fallback" {
+			t.Errorf("recognized/our flag leaked into RawFlags: %s", f)
+		}
+	}
+}
+
+func TestParsePCP_NoFallback_UnknownFlagStillRejected(t *testing.T) {
+	args := []string{"--reflink=auto", "-r", "src", "dst"}
+	if _, err := cli.ParsePCP(args); err == nil {
+		t.Error("unknown flag without --fallback must error")
 	}
 }
