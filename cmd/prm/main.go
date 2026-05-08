@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -97,10 +98,7 @@ func run(args []string) int {
 	}()
 
 	w := walk.NewRemove(p)
-	if err := w.Walk(sig.Ctx(), jobs); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		return 2
-	}
+	walkErr := w.Walk(sig.Ctx(), jobs)
 	close(jobs)
 	poolWg.Wait()
 
@@ -108,12 +106,16 @@ func run(args []string) int {
 	consumeWg.Wait()
 	close(progressDone)
 
+	if walkErr != nil && !errors.Is(walkErr, context.Canceled) {
+		fmt.Fprintf(os.Stderr, "prm: %v\n", walkErr)
+	}
+
 	if sig.Ctx().Err() != nil {
 		fmt.Fprintf(os.Stderr, "\nInterrupted: %d files processed, %d skipped, %d errors\n",
 			prog.Files(), prog.Skipped(), prog.Errors())
 		return 130
 	}
-	if prog.Errors() > 0 || exitOnError {
+	if prog.Errors() > 0 || exitOnError || (walkErr != nil && !errors.Is(walkErr, context.Canceled)) {
 		fmt.Fprintf(os.Stderr, "\nCompleted with %d errors. See %s\n", prog.Errors(), errLog.Path())
 		return 1
 	}
