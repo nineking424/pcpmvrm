@@ -3,6 +3,7 @@ package integration_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -149,6 +150,56 @@ func TestIntegration_PCP_StrictExtensionTriggerOrder(t *testing.T) {
 	}
 	if jsonAt < jpg1At || jsonAt < jpg2At {
 		t.Errorf(".json should follow all .jpg lines\n%s", out)
+	}
+}
+
+// TestIntegration_PCP_StrictExtensionTriggerOrder_LexFirst pins phase-boundary
+// behavior: even when the trigger file is lexically FIRST in DFS order
+// (so a shared worker pool would interleave it with phase-1 work), the
+// strict-extension semantics must still complete every non-target file
+// before any target file (spec §5.2).
+func TestIntegration_PCP_StrictExtensionTriggerOrder_LexFirst(t *testing.T) {
+	bin := pcpBin(t)
+	root := t.TempDir()
+	src := filepath.Join(root, "src")
+	dst := filepath.Join(root, "dst")
+
+	// Large payloads + many files so that a shared-pool implementation will
+	// have phase-1 work still in flight when phase-2 emits the lex-first
+	// trigger. (Spec §5.2 requires phase 2 to start only after phase 1
+	// has fully drained.)
+	tree := map[string]string{
+		"aaa.json": "trigger",
+	}
+	bigPayload := strings.Repeat("x", 1024*1024) // 1 MiB
+	for i := 0; i < 30; i++ {
+		// non-target files come AFTER the trigger lexically.
+		tree[fmt.Sprintf("payload/f%03d.bin", i)] = bigPayload
+	}
+	mkTree(t, src, tree)
+
+	cmd := exec.Command(bin, "-r", "-v", "--parallel=4", "--strict-extension=.json", src, dst)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("pcp failed: %v\n%s", err, stdout.String())
+	}
+	out := stdout.String()
+
+	// trigger의 'ok' 라인은 모든 non-target 'ok' 라인보다 뒤에 있어야 한다.
+	jsonAt := strings.Index(out, "ok   aaa.json")
+	if jsonAt < 0 {
+		t.Fatalf("trigger ok-line missing:\n%s", out)
+	}
+	for i := 0; i < 30; i++ {
+		needle := fmt.Sprintf("ok   payload/f%03d.bin", i)
+		at := strings.Index(out, needle)
+		if at < 0 {
+			t.Fatalf("payload ok-line missing for %d:\n%s", i, out)
+		}
+		if at > jsonAt {
+			t.Fatalf("phase-boundary violated: payload f%03d.bin (offset %d) completed AFTER trigger aaa.json (offset %d)", i, at, jsonAt)
+		}
 	}
 }
 

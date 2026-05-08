@@ -47,17 +47,8 @@ func run(args []string) int {
 	prog := report.NewProgress(os.Stderr, "pcp", isTTY(os.Stderr) && !p.NoProgress)
 	verb := report.NewVerbose(os.Stdout, p.Verbose)
 
-	jobs := make(chan plan.Job, maxInt(1, p.Workers*4))
+	// results는 모든 phase가 공유하는 단일 sink. jobs/pool은 phase 단위로 새로 만든다.
 	results := make(chan plan.Result, maxInt(1, p.Workers*4))
-	pool := worker.NewPool(p.Workers, worker.PCP(p))
-
-	var workerWg sync.WaitGroup
-	workerWg.Add(1)
-	go func() {
-		defer workerWg.Done()
-		pool.Run(sig.Ctx(), jobs, results)
-		close(results)
-	}()
 
 	progressDone := make(chan struct{})
 	go prog.Loop(progressDone, time.Second)
@@ -89,22 +80,47 @@ func run(args []string) int {
 		}
 	}()
 
+	walkErrCb := func(rel string, e error) {
+		errLog.Record("walk", rel, e)
+		prog.IncErrors()
+		verb.Logf("ERR  %s: %s", rel, e)
+	}
+
+	// runPhase는 각 phase마다 jobs 채널 + worker pool을 새로 만든다.
+	// pool이 jobs를 다 비우고 종료될 때까지 블록 — phase 간 순서를 강제한다.
+	runPhase := func(workers int, walkFn func(context.Context, chan<- plan.Job) error) {
+		jobs := make(chan plan.Job, maxInt(1, workers*4))
+		pool := worker.NewPool(workers, worker.PCP(p))
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			pool.Run(sig.Ctx(), jobs, results)
+		}()
+		_ = walkFn(sig.Ctx(), jobs)
+		close(jobs)
+		wg.Wait()
+	}
+
 	// 워커 모드 선택
 	switch {
 	case len(p.StrictExtensions) > 0:
-		runStrictExt(sig.Ctx(), p, jobs)
+		// 스펙 §5.2: phase 1은 N 워커, phase 2는 워커=1로 직렬화. 두 phase는
+		// 서로 다른 pool을 사용해야 trigger 순서가 보장된다.
+		w := walk.NewStrictExt(p).OnError(walkErrCb)
+		runPhase(p.Workers, w.RunPhase1)
+		if sig.Ctx().Err() == nil {
+			runPhase(1, w.RunPhase2)
+		}
 	case p.StrictOrder:
-		_ = walk.NewStrictOrder(p).Walk(sig.Ctx(), jobs)
+		w := walk.NewStrictOrder(p).OnError(walkErrCb)
+		runPhase(p.Workers, w.Walk)
 	default:
-		_ = walk.NewDefault(p).OnError(func(rel string, e error) {
-			errLog.Record("walk", rel, e)
-			prog.IncErrors()
-			verb.Logf("ERR  %s: %s", rel, e)
-		}).Walk(sig.Ctx(), jobs)
+		w := walk.NewDefault(p).OnError(walkErrCb)
+		runPhase(p.Workers, w.Walk)
 	}
-	close(jobs)
 
-	workerWg.Wait()
+	close(results)
 	consumeWg.Wait()
 	close(progressDone)
 
@@ -121,14 +137,6 @@ func run(args []string) int {
 		fmt.Fprintln(os.Stderr)
 	}
 	return 0
-}
-
-func runStrictExt(ctx context.Context, p plan.Plan, jobs chan<- plan.Job) {
-	w := walk.NewStrictExt(p)
-	_ = w.RunPhase1(ctx, jobs)
-	// Phase1 모든 워커가 drain되도록 채널을 비워주는 책임은 호출부 worker pool에 있음.
-	// 우리는 Phase2를 단순히 같은 채널에 추가로 push한다.
-	_ = w.RunPhase2(ctx, jobs)
 }
 
 func opName(k plan.JobKind) string {
