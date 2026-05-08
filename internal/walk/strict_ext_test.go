@@ -16,11 +16,11 @@ func TestStrictExt_TriggerOrdering(t *testing.T) {
 	src := filepath.Join(root, "src")
 	dst := filepath.Join(root, "dst")
 	mkTree(t, src, map[string]string{
-		"img/a.jpg":     "A",
-		"img/b.jpg":     "B",
-		"data/x.json":   "X",
-		"data/y.json":   "Y",
-		"plain.txt":     "P",
+		"img/a.jpg":   "A",
+		"img/b.jpg":   "B",
+		"data/x.json": "X",
+		"data/y.json": "Y",
+		"plain.txt":   "P",
 	})
 	_ = os.MkdirAll(dst, 0755)
 
@@ -29,46 +29,56 @@ func TestStrictExt_TriggerOrdering(t *testing.T) {
 		StrictExtensions: []string{".json"},
 	})
 
-	var phaseSeen []string
-	var mu sync.Mutex
-	jobs := make(chan plan.Job, 16)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for j := range jobs {
-			mu.Lock()
-			phaseSeen = append(phaseSeen, j.RelPath)
-			mu.Unlock()
+	drain := func(ch <-chan plan.Job) []string {
+		var out []string
+		for j := range ch {
+			out = append(out, j.RelPath)
 		}
-	}()
+		return out
+	}
 
-	// Phase 1만 먼저 끝내고, Phase 2는 RunPhase2로 트리거
-	if err := w.RunPhase1(context.Background(), jobs); err != nil {
+	// Phase 1: 별도 채널로 받아서 완전히 드레인
+	p1 := make(chan plan.Job, 16)
+	var phase1 []string
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		phase1 = drain(p1)
+	}()
+	if err := w.RunPhase1(context.Background(), p1); err != nil {
 		t.Fatal(err)
 	}
-	mu.Lock()
-	phase1Count := len(phaseSeen)
-	mu.Unlock()
-	if phase1Count == 0 {
+	close(p1)
+	wg.Wait()
+
+	if len(phase1) == 0 {
 		t.Fatal("phase1 produced no jobs")
 	}
-
-	if err := w.RunPhase2(context.Background(), jobs); err != nil {
-		t.Fatal(err)
-	}
-	close(jobs)
-	<-done
-
-	mu.Lock()
-	defer mu.Unlock()
-	// Phase1 안에 .json이 없어야 한다
-	for _, r := range phaseSeen[:phase1Count] {
+	for _, r := range phase1 {
 		if filepath.Ext(r) == ".json" {
 			t.Errorf("phase1 contained .json file: %s", r)
 		}
 	}
-	// Phase2엔 .json만
-	for _, r := range phaseSeen[phase1Count:] {
+
+	// Phase 2: 별도 채널로 받아서 완전히 드레인
+	p2 := make(chan plan.Job, 16)
+	var phase2 []string
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		phase2 = drain(p2)
+	}()
+	if err := w.RunPhase2(context.Background(), p2); err != nil {
+		t.Fatal(err)
+	}
+	close(p2)
+	wg.Wait()
+
+	if len(phase2) == 0 {
+		t.Fatal("phase2 produced no jobs")
+	}
+	for _, r := range phase2 {
 		if filepath.Ext(r) != ".json" {
 			t.Errorf("phase2 contained non-.json: %s", r)
 		}
