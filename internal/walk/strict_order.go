@@ -12,11 +12,19 @@ import (
 // StrictOrder emits one Job per directory. Workers process the directory
 // content serially, in walk order, by re-walking from the directory root.
 type StrictOrder struct {
-	p plan.Plan
+	p       plan.Plan
+	onError func(rel string, err error) // optional; called for skipped walk errors
 }
 
 // NewStrictOrder returns a StrictOrder walker.
 func NewStrictOrder(p plan.Plan) *StrictOrder { return &StrictOrder{p: p} }
+
+// OnError sets a callback that is invoked for each skipped walk error.
+// Aligns StrictOrder with Default's best-effort default (brainstorm Q5).
+func (w *StrictOrder) OnError(fn func(rel string, err error)) *StrictOrder {
+	w.onError = fn
+	return w
+}
 
 // Walk pushes one JobDirCopy per directory under src.
 func (w *StrictOrder) Walk(ctx context.Context, jobs chan<- plan.Job) error {
@@ -25,7 +33,15 @@ func (w *StrictOrder) Walk(ctx context.Context, jobs chan<- plan.Job) error {
 	}
 	return filepath.WalkDir(w.p.Src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			// best-effort: skip this entry and continue with siblings.
+			rel, _ := filepath.Rel(w.p.Src, path)
+			if w.onError != nil {
+				w.onError(rel, err)
+			}
+			if d != nil && d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if !d.IsDir() {
 			return nil
