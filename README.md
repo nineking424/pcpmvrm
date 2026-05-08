@@ -4,16 +4,17 @@
 
 ## 상태 (2026-05-08)
 
-- ✅ Plan 1: Foundation + `pcp` (현재 구현 중)
-- ⏳ Plan 2: `pmv`
+- ✅ Plan 1: Foundation + `pcp`
+- ✅ Plan 2: `pmv`
 - ⏳ Plan 3: `prm`
 - ⏳ Plan 4: `--fallback` 모드 (자식 프로세스 위임)
 
 ## 빌드
 
 ```bash
-make build           # bin/pcp 생성
-go test ./...        # 단위 + 통합 테스트
+make build                       # bin/pcp 생성
+go build -o bin/pmv ./cmd/pmv    # bin/pmv 생성
+go test ./...                    # 단위 + 통합 테스트
 ```
 
 ## 사용 예시
@@ -38,11 +39,22 @@ pcp -r --parallel=8 --exit-on-error src/ dst/
 pcp -r --parallel=8 --dry-run src/ dst/
 ```
 
+### pmv
+
+```bash
+# Cross-device 이동 (자동 감지, copy+unlink)
+pmv --parallel=8 /mnt/disk1/data /mnt/disk2/data
+
+# Same-device 이동 (자동 다운그레이드, rename(2) 한 번)
+pmv /tmp/old /tmp/new
+```
+
 ## 설계 문서
 
 - [`docs/superpowers/specs/2026-05-08-pcpmvrm-design.md`](docs/superpowers/specs/2026-05-08-pcpmvrm-design.md)
 - [`docs/superpowers/specs/2026-05-08-pcpmvrm-brainstorming-log.md`](docs/superpowers/specs/2026-05-08-pcpmvrm-brainstorming-log.md)
 - [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan1-foundation-and-pcp.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan1-foundation-and-pcp.md)
+- [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan2-pmv.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan2-pmv.md)
 
 ## 라이선스
 
