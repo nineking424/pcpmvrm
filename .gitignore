@@ -1,0 +1,21 @@
+# Binaries
+/pcp
+/pmv
+/prm
+/bin/
+
+# Go test artifacts
+*.test
+*.out
+coverage.out
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# pcpmvrm runtime artifacts (테스트 시 생성)
+pcp-failed-*.log
+pmv-failed-*.log
+prm-failed-*.log
+*.pcp-tmp-*
