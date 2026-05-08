@@ -6,7 +6,7 @@
 
 - ✅ Plan 1: Foundation + `pcp`
 - ✅ Plan 2: `pmv`
-- ⏳ Plan 3: `prm`
+- ✅ Plan 3: `prm`
 - ⏳ Plan 4: `--fallback` 모드 (자식 프로세스 위임)
 
 ## 빌드
@@ -14,6 +14,7 @@
 ```bash
 make build                       # bin/pcp 생성
 go build -o bin/pmv ./cmd/pmv    # bin/pmv 생성
+go build -o bin/prm ./cmd/prm    # bin/prm 생성
 go test ./...                    # 단위 + 통합 테스트
 ```
 
@@ -49,12 +50,26 @@ pmv --parallel=8 /mnt/disk1/data /mnt/disk2/data
 pmv /tmp/old /tmp/new
 ```
 
+### prm
+
+```bash
+# 대량 삭제, 첫 에러에서 중단
+prm -rf --parallel=16 --exit-on-error /var/cache/old/
+
+# 빈 디렉토리만 (-d, 비어있지 않으면 ENOTEMPTY로 실패)
+prm -d /tmp/maybe-empty/
+
+# 사전 계획 확인 (실제 syscall 없음)
+prm -r --parallel=8 --dry-run /var/log/old/
+```
+
 ## 설계 문서
 
 - [`docs/superpowers/specs/2026-05-08-pcpmvrm-design.md`](docs/superpowers/specs/2026-05-08-pcpmvrm-design.md)
 - [`docs/superpowers/specs/2026-05-08-pcpmvrm-brainstorming-log.md`](docs/superpowers/specs/2026-05-08-pcpmvrm-brainstorming-log.md)
 - [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan1-foundation-and-pcp.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan1-foundation-and-pcp.md)
 - [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan2-pmv.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan2-pmv.md)
+- [`docs/superpowers/plans/2026-05-08-pcpmvrm-plan3-prm.md`](docs/superpowers/plans/2026-05-08-pcpmvrm-plan3-prm.md)
 
 ## 라이선스
 
