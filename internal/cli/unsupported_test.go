@@ -21,6 +21,16 @@ func TestRejectUnsupported(t *testing.T) {
 		{name: "pcp reject -L", tool: "pcp", args: []string{"-L", "src", "dst"}, hit: "-L"},
 		{name: "pcp reject combined -ri", tool: "pcp", args: []string{"-ri", "src", "dst"}, hit: "-i"},
 		{name: "pcp ok combined -ra", tool: "pcp", args: []string{"-ra", "src", "dst"}, hit: ""},
+
+		{name: "pmv reject -b", tool: "pmv", args: []string{"-b", "src", "dst"}, hit: "-b"},
+		{name: "pmv reject --backup", tool: "pmv", args: []string{"--backup=numbered", "src", "dst"}, hit: "--backup"},
+		{name: "pmv reject -T", tool: "pmv", args: []string{"-T", "src", "dst"}, hit: "-T"},
+		{name: "pmv reject --no-target-directory", tool: "pmv", args: []string{"--no-target-directory", "src", "dst"}, hit: "--no-target-directory"},
+		{name: "pmv reject --strip-trailing-slashes", tool: "pmv", args: []string{"--strip-trailing-slashes", "src", "dst"}, hit: "--strip-trailing-slashes"},
+		{name: "pmv reject -Z", tool: "pmv", args: []string{"-Z", "src", "dst"}, hit: "-Z"},
+		{name: "pmv reject --context", tool: "pmv", args: []string{"--context=user_u", "src", "dst"}, hit: "--context"},
+		{name: "pmv reject -i", tool: "pmv", args: []string{"-i", "src", "dst"}, hit: "-i"},
+		{name: "pmv ok plain", tool: "pmv", args: []string{"-f", "src", "dst"}, hit: ""},
 	}
 
 	for _, tt := range tests {
@@ -41,6 +51,15 @@ func TestUnsupportedMessage(t *testing.T) {
 		"성능",
 	}
 	for _, w := range want {
+		if !strings.Contains(msg, w) {
+			t.Errorf("message %q missing %q", msg, w)
+		}
+	}
+}
+
+func TestUnsupportedMessage_PMV(t *testing.T) {
+	msg := cli.UnsupportedMessage("pmv", "--backup")
+	for _, w := range []string{"pmv: '--backup'", "--fallback", "성능"} {
 		if !strings.Contains(msg, w) {
 			t.Errorf("message %q missing %q", msg, w)
 		}
