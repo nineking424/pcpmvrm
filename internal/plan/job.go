@@ -40,4 +40,15 @@ type Job struct {
 	Dst     string
 	RelPath string
 	Info    fs.FileInfo
+	// Done is invoked by the worker pool after this Job is processed
+	// (success or failure). nil is safe — used by the prm walker to coordinate
+	// "parent rmdir after all children unlink" via sync.WaitGroup.
+	Done func()
+}
+
+// Finish invokes Done if non-nil. Called by the worker pool exactly once per Job.
+func (j Job) Finish() {
+	if j.Done != nil {
+		j.Done()
+	}
 }

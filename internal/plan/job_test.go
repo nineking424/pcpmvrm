@@ -23,3 +23,17 @@ func TestJobKind_String(t *testing.T) {
 		}
 	}
 }
+
+func TestJob_FinishNilSafe(t *testing.T) {
+	j := plan.Job{Kind: plan.JobUnlink, Src: "/x"}
+	j.Finish() // must not panic when Done is nil
+}
+
+func TestJob_FinishCallsDone(t *testing.T) {
+	called := false
+	j := plan.Job{Kind: plan.JobUnlink, Src: "/x", Done: func() { called = true }}
+	j.Finish()
+	if !called {
+		t.Error("Job.Finish should invoke Done")
+	}
+}
