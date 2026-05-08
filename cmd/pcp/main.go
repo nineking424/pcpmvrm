@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nineking424/pcpmvrm/internal/cli"
+	"github.com/nineking424/pcpmvrm/internal/fallback"
 	"github.com/nineking424/pcpmvrm/internal/plan"
 	"github.com/nineking424/pcpmvrm/internal/report"
 	"github.com/nineking424/pcpmvrm/internal/walk"
@@ -86,11 +87,18 @@ func run(args []string) int {
 		verb.Logf("ERR  %s: %s", rel, e)
 	}
 
+	var handler worker.Handler
+	if p.Fallback {
+		handler = fallback.Build(p)
+	} else {
+		handler = worker.PCP(p)
+	}
+
 	// runPhase는 각 phase마다 jobs 채널 + worker pool을 새로 만든다.
 	// pool이 jobs를 다 비우고 종료될 때까지 블록 — phase 간 순서를 강제한다.
 	runPhase := func(workers int, walkFn func(context.Context, chan<- plan.Job) error) {
 		jobs := make(chan plan.Job, maxInt(1, workers*4))
-		pool := worker.NewPool(workers, worker.PCP(p))
+		pool := worker.NewPool(workers, handler)
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nineking424/pcpmvrm/internal/cli"
+	"github.com/nineking424/pcpmvrm/internal/fallback"
 	"github.com/nineking424/pcpmvrm/internal/plan"
 	"github.com/nineking424/pcpmvrm/internal/report"
 	"github.com/nineking424/pcpmvrm/internal/walk"
@@ -88,8 +89,15 @@ func run(args []string) int {
 		}
 	}()
 
+	var handler worker.Handler
+	if p.Fallback {
+		handler = fallback.Build(p)
+	} else {
+		handler = worker.PRM(p)
+	}
+
 	jobs := make(chan plan.Job, maxInt(1, p.Workers*4))
-	pool := worker.NewPool(p.Workers, worker.PRM(p))
+	pool := worker.NewPool(p.Workers, handler)
 	var poolWg sync.WaitGroup
 	poolWg.Add(1)
 	go func() {
