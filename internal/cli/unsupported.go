@@ -39,10 +39,17 @@ var unsupportedExact = map[string]map[string]struct{}{
 // FirstUnsupported scans args and returns the first unsupported option found,
 // or "" if all options are supported. It does not parse positional args.
 //
+// If --fallback is present (bare or --fallback=...), returns "" immediately,
+// since all options are delegated to the system binary.
+//
 // It correctly explodes combined short flags ("-ri" → "-r" + "-i").
 // Long options with values ("--reflink=auto") are matched on the option name only.
 // Exact matches (e.g., "--preserve-root=all") take precedence over name-only matches.
 func FirstUnsupported(tool string, args []string) string {
+	if hasFlag(args, "--fallback") {
+		return ""
+	}
+
 	short := unsupportedShort[tool]
 	long := unsupportedLong[tool]
 	exact := unsupportedExact[tool]
@@ -71,6 +78,16 @@ func FirstUnsupported(tool string, args []string) string {
 		}
 	}
 	return ""
+}
+
+// hasFlag reports whether args contains the long-form `name` (with or without =value).
+func hasFlag(args []string, name string) bool {
+	for _, a := range args {
+		if a == name || strings.HasPrefix(a, name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 // UnsupportedMessage builds the standard rejection message shown to users.

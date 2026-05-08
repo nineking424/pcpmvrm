@@ -15,6 +15,8 @@ func ParsePCP(args []string) (plan.Plan, error) {
 		return plan.Plan{}, errors.New(UnsupportedMessage("pcp", hit))
 	}
 
+	fallback := hasFlag(args, "--fallback")
+
 	var (
 		c            Common
 		recurse      bool
@@ -27,6 +29,9 @@ func ParsePCP(args []string) (plan.Plan, error) {
 		overwrite    bool
 	)
 	fs := pflag.NewFlagSet("pcp", pflag.ContinueOnError)
+	if fallback {
+		fs.ParseErrorsWhitelist.UnknownFlags = true
+	}
 	RegisterCommon(fs, &c)
 	fs.BoolVarP(&recurse, "recursive", "r", false, "copy directories recursively")
 	fs.BoolVarP(&recurse, "Recursive", "R", false, "alias for --recursive")
@@ -73,6 +78,10 @@ func ParsePCP(args []string) (plan.Plan, error) {
 		NoClobber:        noClobber,
 		UpdateOnly:       updateOnly,
 		Preserve:         pres,
+		Fallback:         c.Fallback,
+	}
+	if c.Fallback {
+		p.RawFlags = collectRawFlags(args, fs)
 	}
 	if err := p.Validate(); err != nil {
 		return plan.Plan{}, fmt.Errorf("pcp: %w", err)

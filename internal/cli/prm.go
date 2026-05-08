@@ -15,6 +15,8 @@ func ParsePRM(args []string) (plan.Plan, error) {
 		return plan.Plan{}, errors.New(UnsupportedMessage("prm", hit))
 	}
 
+	fallback := hasFlag(args, "--fallback")
+
 	var (
 		c         Common
 		recurse   bool
@@ -23,6 +25,9 @@ func ParsePRM(args []string) (plan.Plan, error) {
 		emptyDir  bool
 	)
 	fs := pflag.NewFlagSet("prm", pflag.ContinueOnError)
+	if fallback {
+		fs.ParseErrorsWhitelist.UnknownFlags = true
+	}
 	RegisterCommon(fs, &c)
 	fs.BoolVarP(&recurse, "recursive", "r", false, "recursively remove directories")
 	fs.BoolVarP(&recurse, "RECURSIVE", "R", false, "alias for --recursive")
@@ -54,6 +59,10 @@ func ParsePRM(args []string) (plan.Plan, error) {
 		ErrorLogPath:     c.ErrorLogPath,
 		StrictOrder:      c.StrictOrder,
 		StrictExtensions: c.StrictExtensions,
+		Fallback:         c.Fallback,
+	}
+	if c.Fallback {
+		p.RawFlags = collectRawFlags(args, fs)
 	}
 	if err := p.Validate(); err != nil {
 		return plan.Plan{}, fmt.Errorf("prm: %w", err)

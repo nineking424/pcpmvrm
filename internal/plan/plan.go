@@ -43,6 +43,12 @@ type Plan struct {
 	// SameDevice는 pmv가 사전 stat 결과로 same-device임을 확인했을 때 true.
 	// true이면 Workers는 1로 다운그레이드된 상태이며 walker가 단일 JobRename을 emit한다.
 	SameDevice bool
+
+	// Fallback이 true이면 워커가 native syscall 대신 자식 프로세스를 호출한다.
+	Fallback bool
+	// RawFlags는 --fallback 모드에서 자식 프로세스에 그대로 전달할 옵션들이다.
+	// pflag가 인식한 long/short 옵션은 보존된 형태(예: "--reflink=auto", "-d")로 들어간다.
+	RawFlags []string
 }
 
 // Preserve groups the metadata-preservation flags.

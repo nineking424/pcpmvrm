@@ -54,3 +54,34 @@ func TestParsePRM_RejectsRecursiveOnFile(t *testing.T) {
 		t.Errorf("parser should accept -r + PATH: %v", err)
 	}
 }
+
+func TestParsePRM_FallbackPreservesUnknownFlags(t *testing.T) {
+	args := []string{"--fallback", "-i", "-r", "/tmp/x"}
+	p, err := cli.ParsePRM(args)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !p.Fallback {
+		t.Fatal("Fallback should be true")
+	}
+	want := map[string]bool{"-i": true}
+	got := map[string]bool{}
+	for _, f := range p.RawFlags {
+		got[f] = true
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("RawFlags=%v want %v", p.RawFlags, want)
+	}
+	for _, f := range p.RawFlags {
+		if f == "-r" || f == "--fallback" {
+			t.Errorf("recognized/our flag leaked into RawFlags: %s", f)
+		}
+	}
+}
+
+func TestParsePRM_NoFallback_UnknownFlagStillRejected(t *testing.T) {
+	args := []string{"-i", "/tmp/x"}
+	if _, err := cli.ParsePRM(args); err == nil {
+		t.Error("unknown flag without --fallback must error")
+	}
+}
