@@ -55,10 +55,10 @@ func TestStrictOrder_OnError_BestEffort(t *testing.T) {
 	src := filepath.Join(root, "src")
 	dst := filepath.Join(root, "dst")
 	mkTree(t, src, map[string]string{
-		"good/a":   "A",
-		"good/b":   "B",
-		"bad/x":    "X",
-		"more/c":   "C",
+		"good/a": "A",
+		"good/b": "B",
+		"bad/x":  "X",
+		"more/c": "C",
 	})
 	// 'bad' 디렉토리 권한 박탈 → WalkDir이 자식을 읽을 때 에러
 	badDir := filepath.Join(src, "bad")
@@ -68,14 +68,20 @@ func TestStrictOrder_OnError_BestEffort(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(badDir, 0755) })
 
 	var (
-		mu     sync.Mutex
-		errs   []struct{ rel string; err error }
+		mu   sync.Mutex
+		errs []struct {
+			rel string
+			err error
+		}
 	)
 	w := walk.NewStrictOrder(plan.Plan{Op: plan.OpCopy, Src: src, Dst: dst, Recursive: true}).
 		OnError(func(rel string, err error) {
 			mu.Lock()
 			defer mu.Unlock()
-			errs = append(errs, struct{ rel string; err error }{rel, err})
+			errs = append(errs, struct {
+				rel string
+				err error
+			}{rel, err})
 		})
 
 	jobs := make(chan plan.Job, 16)

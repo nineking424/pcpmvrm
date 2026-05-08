@@ -97,12 +97,12 @@ func TestStrictExt_OnError_BothPhases(t *testing.T) {
 	src := filepath.Join(root, "src")
 	dst := filepath.Join(root, "dst")
 	mkTree(t, src, map[string]string{
-		"good/a.txt":   "A",
-		"good/b.json":  "B",
-		"bad/x.txt":    "X",
-		"bad/y.json":   "Y",
-		"more/c.txt":   "C",
-		"more/d.json":  "D",
+		"good/a.txt":  "A",
+		"good/b.json": "B",
+		"bad/x.txt":   "X",
+		"bad/y.json":  "Y",
+		"more/c.txt":  "C",
+		"more/d.json": "D",
 	})
 	_ = os.MkdirAll(dst, 0755)
 
@@ -114,7 +114,10 @@ func TestStrictExt_OnError_BothPhases(t *testing.T) {
 
 	var (
 		mu   sync.Mutex
-		errs []struct{ rel string; err error }
+		errs []struct {
+			rel string
+			err error
+		}
 	)
 	w := walk.NewStrictExt(plan.Plan{
 		Op: plan.OpCopy, Src: src, Dst: dst, Recursive: true,
@@ -122,7 +125,10 @@ func TestStrictExt_OnError_BothPhases(t *testing.T) {
 	}).OnError(func(rel string, err error) {
 		mu.Lock()
 		defer mu.Unlock()
-		errs = append(errs, struct{ rel string; err error }{rel, err})
+		errs = append(errs, struct {
+			rel string
+			err error
+		}{rel, err})
 	})
 
 	drain := func(ch <-chan plan.Job) []string {
