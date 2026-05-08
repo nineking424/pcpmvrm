@@ -60,6 +60,22 @@ func TestBuild_DryRunNoSpawn(t *testing.T) {
 	}
 }
 
+func TestBuild_ChildExitsNonZero(t *testing.T) {
+	// 존재하지 않는 src로 cp를 호출 → 자식이 비-0 종료. result.Err가 채워지는지 검증.
+	dst := filepath.Join(t.TempDir(), "dst")
+	p := plan.Plan{Op: plan.OpCopy}
+	h := Build(p)
+	r := h(context.Background(), plan.Job{
+		Kind: plan.JobCopy,
+		Src:  "/no/such/src/path",
+		Dst:  dst,
+	})
+
+	if r.Err == nil {
+		t.Fatal("expected error from non-existent source, got nil")
+	}
+}
+
 func TestBuild_PRMRemovesViaRm(t *testing.T) {
 	f, err := os.CreateTemp(t.TempDir(), "rm-")
 	if err != nil {
