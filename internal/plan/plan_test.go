@@ -67,3 +67,20 @@ func TestPlanValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestPlan_Validate_OpMove(t *testing.T) {
+	p := plan.Plan{Op: plan.OpMove, Src: "/a", Dst: "/b", Workers: 1}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("OpMove plan should validate, got: %v", err)
+	}
+}
+
+func TestPlan_SameDeviceField(t *testing.T) {
+	p := plan.Plan{Op: plan.OpMove, Src: "/a", Dst: "/b", Workers: 1, SameDevice: true}
+	if !p.SameDevice {
+		t.Error("SameDevice field should be settable")
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("plan with SameDevice should validate: %v", err)
+	}
+}
