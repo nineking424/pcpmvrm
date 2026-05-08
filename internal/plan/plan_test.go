@@ -84,3 +84,24 @@ func TestPlan_SameDeviceField(t *testing.T) {
 		t.Fatalf("plan with SameDevice should validate: %v", err)
 	}
 }
+
+func TestPlan_Validate_FallbackPasses(t *testing.T) {
+	p := plan.Plan{
+		Op: plan.OpCopy, Src: "/a", Dst: "/b", Workers: 1,
+		Fallback: true,
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("fallback plan should validate: %v", err)
+	}
+}
+
+func TestPlan_RawFlagsRoundtrip(t *testing.T) {
+	p := plan.Plan{
+		Op: plan.OpCopy, Src: "/a", Dst: "/b", Workers: 1,
+		Fallback: true,
+		RawFlags: []string{"--reflink=auto", "-d"},
+	}
+	if got := p.RawFlags; len(got) != 2 || got[0] != "--reflink=auto" || got[1] != "-d" {
+		t.Errorf("RawFlags=%v", got)
+	}
+}
