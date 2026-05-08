@@ -74,3 +74,25 @@ func TestUnsupportedMessage_PMV(t *testing.T) {
 		}
 	}
 }
+
+func TestFirstUnsupported_BypassedWithFallback(t *testing.T) {
+	args := []string{"--fallback", "--reflink=auto", "-r", "src", "dst"}
+	if hit := cli.FirstUnsupported("pcp", args); hit != "" {
+		t.Errorf("--fallback should bypass unsupported check, got hit: %q", hit)
+	}
+}
+
+func TestFirstUnsupported_BlockedWithoutFallback(t *testing.T) {
+	args := []string{"--reflink=auto", "-r", "src", "dst"}
+	if hit := cli.FirstUnsupported("pcp", args); hit != "--reflink" {
+		t.Errorf("--reflink without --fallback should be hit (got %q)", hit)
+	}
+}
+
+func TestFirstUnsupported_BypassedWithFallbackEqualsForm(t *testing.T) {
+	// pflag accepts --fallback=true; bypass must trigger for that form too.
+	args := []string{"--fallback=true", "-i", "src", "dst"}
+	if hit := cli.FirstUnsupported("pmv", args); hit != "" {
+		t.Errorf("--fallback=true should bypass, got hit: %q", hit)
+	}
+}
