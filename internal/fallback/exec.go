@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 // CmdOutput captures stdout, stderr, and exit code of a child process.
@@ -37,7 +38,7 @@ func RunCmd(ctx context.Context, name string, args []string) (CmdOutput, error) 
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {
 		out.ExitCode = exitErr.ExitCode()
-		return out, fmt.Errorf("%s exited %d: %s", name, out.ExitCode, trim(out.Stderr))
+		return out, fmt.Errorf("%s exited %d: %s", name, out.ExitCode, flattenStderr(out.Stderr))
 	}
 	if ctx.Err() != nil {
 		return out, ctx.Err()
@@ -45,10 +46,16 @@ func RunCmd(ctx context.Context, name string, args []string) (CmdOutput, error) 
 	return out, err
 }
 
-func trim(s string) string {
-	const max = 200
-	if len(s) <= max {
-		return s
+// flattenStderr는 자식의 stderr를 errLog의 단일-라인 탭 구분 포맷에
+// 안전하게 끼워 넣을 수 있도록 newline/tab을 ` | `로 치환하고 길이를 제한한다.
+func flattenStderr(s string) string {
+	const max = 2000
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\n", " | ")
+	s = strings.ReplaceAll(s, "\t", " ")
+	if len(s) > max {
+		return s[:max] + "..."
 	}
-	return s[:max] + "..."
+	return s
 }

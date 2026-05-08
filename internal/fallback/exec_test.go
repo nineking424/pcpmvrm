@@ -38,6 +38,28 @@ func TestRunCmd_NotFound(t *testing.T) {
 	}
 }
 
+func TestRunCmd_MultiLineStderrIsFlattened(t *testing.T) {
+	// 비-0 종료 + 멀티라인 stderr → 에러 메시지에는 newline/tab이 들어가면 안 된다
+	// (errLog 단일 라인 탭 포맷이 깨지지 않도록).
+	_, err := fallback.RunCmd(context.Background(), "/bin/sh",
+		[]string{"-c", "printf 'line1\\nline2\\tcol\\nline3' >&2; exit 1"})
+	if err == nil {
+		t.Fatal("expected non-zero exit")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "\n") {
+		t.Errorf("error message contains newline: %q", msg)
+	}
+	if strings.Contains(msg, "\t") {
+		t.Errorf("error message contains tab: %q", msg)
+	}
+	for _, want := range []string{"line1", "line2", "line3"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error message missing %q: %q", want, msg)
+		}
+	}
+}
+
 func TestRunCmd_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // immediate cancel
